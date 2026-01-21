@@ -1,0 +1,36 @@
+{
+  "name": "lexchat",
+  "version": "1.0.0",
+  "private": true,
+  "description": "AI právní asistent s databází soudních rozhodnutí",
+  "author": "LexChat Team",
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "next lint"
+  },
+  "dependencies": {
+    "@qdrant/js-client-rest": "^1.16.2",
+    "fs-extra": "^11.1.1",
+    "mammoth": "^1.11.0",
+    "multer": "^1.4.5-lts.1",
+    "next": "^14.0.0",
+    "openai": "^4.104.0",
+    "pdf-parse": "^1.1.4",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
+    "stripe": "^20.2.0"
+  },
+  "devDependencies": {
+    "@tailwindcss/postcss": "^4.1.17",
+    "@types/node": "^20.19.30",
+    "@types/react": "^18.2.0",
+    "@types/react-dom": "^18.2.0",
+    "autoprefixer": "^10.4.22",
+    "eslint": "^8.54.0",
+    "eslint-config-next": "^14.0.0",
+    "postcss": "^8.5.6",
+    "typescript": "^5.3.0"
+  }
+}
