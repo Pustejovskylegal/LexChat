@@ -1,17 +1,17 @@
 import { QdrantClient } from "@qdrant/js-client-rest";
 
-if (!process.env.QDRANT_URL) {
-throw new Error("QDRANT_URL is missing");
+export const COLLECTION_NAME = "lexchat";
+
+export function getQdrantClient() {
+const url = process.env.QDRANT_URL;
+const apiKey = process.env.QDRANT_API_KEY;
+
+if (!url || !apiKey) {
+throw new Error("Qdrant env variables are missing");
 }
 
-if (!process.env.QDRANT_API_KEY) {
-throw new Error("QDRANT_API_KEY is missing");
-}
-
-export const qdrant = new QdrantClient({
-url: process.env.QDRANT_URL,
-apiKey: process.env.QDRANT_API_KEY,
-checkCompatibility: false,
+return new QdrantClient({
+url,
+apiKey,
 });
-
-export const COLLECTION_NAME = "documents";
+}
