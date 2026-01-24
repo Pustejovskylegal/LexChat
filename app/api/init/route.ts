@@ -1,8 +1,10 @@
 import { NextResponse } from "next/server";
-import { qdrant, COLLECTION_NAME } from "../../../lib/vector-db";
+import { getQdrantClient, COLLECTION_NAME } from "../../../lib/vector-db";
 
 export async function GET() {
 try {
+const qdrant = getQdrantClient();
+
 const collections = await qdrant.getCollections();
 
 const exists = collections.collections.some(
@@ -20,7 +22,7 @@ distance: "Cosine",
 
 return NextResponse.json({ status: "ok" });
 } catch (err) {
-console.error(err);
+console.error("Qdrant init error:", err);
 return NextResponse.json(
 { error: "Qdrant init failed" },
 { status: 500 }
