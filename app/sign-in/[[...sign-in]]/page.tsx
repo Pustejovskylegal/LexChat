@@ -50,6 +50,7 @@ export default function SignInPage() {
         // Zkusit dokončit přihlášení s heslem
         const completeSignIn = await signIn.attemptFirstFactor({
           strategy: 'password',
+          password: formData.password,
         });
         
         if (completeSignIn.status === 'complete') {
