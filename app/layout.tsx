@@ -2,6 +2,8 @@ import "./globals.css";
 import { Metadata } from "next";
 import { ClerkProvider } from "@clerk/nextjs";
 
+export const dynamic = "force-dynamic";
+
 export const metadata: Metadata = {
   viewport: "width=device-width, initial-scale=1, maximum-scale=5",
 };
