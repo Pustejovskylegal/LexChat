@@ -65,19 +65,21 @@ export async function GET() {
       });
     }
 
-    const subscription = subscriptions.data[0];
-    const planName = subscription.metadata?.planName || 'Unknown';
+    const subscription = subscriptions.data[0] as Stripe.Subscription;
+    const planName = subscription.metadata?.planName || "Unknown";
     const priceInfo = PRICE_MAP[planName] || { price: 0, priceText: "Neznámá cena" };
-    
-    // Datum další platby (current_period_end)
-    const nextPaymentDate = new Date(subscription.current_period_end * 1000);
+
+    // Datum další platby – Stripe API vrací current_period_end, typ Subscription v tomto SDK ho nemá
+    const periodEnd = (subscription as unknown as { current_period_end?: number }).current_period_end;
+    const nextPaymentDate =
+      typeof periodEnd === "number" ? new Date(periodEnd * 1000) : null;
 
     return NextResponse.json({
       hasSubscription: true,
       plan: planName,
       price: priceInfo.price,
       priceText: priceInfo.priceText,
-      nextPaymentDate: nextPaymentDate.toISOString(),
+      nextPaymentDate: nextPaymentDate?.toISOString() ?? null,
       status: subscription.status,
     });
   } catch (err: any) {
