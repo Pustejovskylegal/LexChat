@@ -1,31 +1,19 @@
 import { NextResponse } from "next/server";
-import { getQdrantClient, COLLECTION_NAME } from "../../../lib/vector-db";
+import {
+  getQdrantClient,
+  ensureCollection,
+} from "../../../lib/vector-db";
 
 export async function GET() {
-try {
-const qdrant = getQdrantClient();
-
-const collections = await qdrant.getCollections();
-
-const exists = collections.collections.some(
-(c) => c.name === COLLECTION_NAME
-);
-
-if (!exists) {
-await qdrant.createCollection(COLLECTION_NAME, {
-vectors: {
-size: 1536,
-distance: "Cosine",
-},
-});
-}
-
-return NextResponse.json({ status: "ok" });
-} catch (err) {
-console.error("Qdrant init error:", err);
-return NextResponse.json(
-{ error: "Qdrant init failed" },
-{ status: 500 }
-);
-}
+  try {
+    const qdrant = getQdrantClient();
+    await ensureCollection(qdrant);
+    return NextResponse.json({ status: "ok" });
+  } catch (err) {
+    console.error("Qdrant init error:", err);
+    return NextResponse.json(
+      { error: "Qdrant init failed" },
+      { status: 500 }
+    );
+  }
 }

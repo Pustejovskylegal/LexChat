@@ -3,14 +3,12 @@
 import Link from "next/link";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { useSignUp } from "@clerk/nextjs";
+import { useSignIn } from "@clerk/nextjs";
 
-export default function SignUpPage() {
+export default function SignInPage() {
   const router = useRouter();
-  const { isLoaded, signUp, setActive } = useSignUp();
+  const { isLoaded, signIn, setActive } = useSignIn();
   const [formData, setFormData] = useState({
-    firstName: '',
-    lastName: '',
     email: '',
     password: '',
   });
@@ -35,21 +33,39 @@ export default function SignUpPage() {
     setError(null);
 
     try {
-      // Vytvořit uživatele pomocí Clerk
-      await signUp.create({
-        emailAddress: formData.email,
+      // Přihlásit uživatele pomocí Clerk
+      const result = await signIn.create({
+        identifier: formData.email,
         password: formData.password,
-        firstName: formData.firstName,
-        lastName: formData.lastName,
       });
 
-      // Odeslat email s verifikačním kódem
-      await signUp.prepareEmailAddressVerification({ strategy: 'email_code' });
-      
-      setPendingVerification(true);
+      // Zkontrolovat stav přihlášení
+      if (result.status === 'complete') {
+        // Přihlášení dokončeno - aktivovat session
+        await setActive({ session: result.createdSessionId });
+        // Přesměrovat na chat
+        router.push('/chat');
+      } else {
+        // Je potřeba další verifikace (2FA, email code, atd.)
+        // Zkusit dokončit přihlášení s heslem
+        const completeSignIn = await signIn.attemptFirstFactor({
+          strategy: 'password',
+        });
+        
+        if (completeSignIn.status === 'complete') {
+          await setActive({ session: completeSignIn.createdSessionId });
+          router.push('/chat');
+        } else if (completeSignIn.status === 'needs_second_factor') {
+          // Je potřeba 2FA nebo email verifikace
+          setPendingVerification(true);
+        } else {
+          setError('Přihlášení vyžaduje další ověření. Zkontrolujte svůj email.');
+          setPendingVerification(true);
+        }
+      }
     } catch (err: any) {
-      console.error('Chyba při registraci:', err);
-      setError(err.errors?.[0]?.message || 'Došlo k chybě při registraci. Zkuste to prosím znovu.');
+      console.error('Chyba při přihlášení:', err);
+      setError(err.errors?.[0]?.message || 'Neplatné přihlašovací údaje. Zkuste to prosím znovu.');
     } finally {
       setIsSubmitting(false);
     }
@@ -63,29 +79,18 @@ export default function SignUpPage() {
     setError(null);
 
     try {
-      // Ověřit email kód
-      const completeSignUp = await signUp.attemptEmailAddressVerification({
+      // Ověřit kód a dokončit přihlášení
+      const completeSignIn = await signIn.attemptFirstFactor({
+        strategy: 'email_code',
         code,
       });
 
-      if (completeSignUp.status !== 'complete') {
-        setError('Verifikace nebyla dokončena. Zkuste to prosím znovu.');
-        return;
-      }
-
-      // Aktivovat session
-      if (completeSignUp.status === 'complete') {
-        await setActive({ session: completeSignUp.createdSessionId });
-        
-        // Uložit data pro pozdější použití
-        sessionStorage.setItem('signupData', JSON.stringify({
-          firstName: formData.firstName,
-          lastName: formData.lastName,
-          email: formData.email,
-        }));
-        
-        // Přesměrovat na výběr tarifu
-        router.push('/signup/pricing');
+      if (completeSignIn.status === 'complete') {
+        await setActive({ session: completeSignIn.createdSessionId });
+        // Přesměrovat na chat
+        router.push('/chat');
+      } else {
+        setError('Přihlášení nebylo dokončeno. Zkuste to prosím znovu.');
       }
     } catch (err: any) {
       console.error('Chyba při ověření:', err);
@@ -122,16 +127,16 @@ export default function SignUpPage() {
         </div>
       </header>
 
-      {/* SIGN UP FORM */}
+      {/* SIGN IN FORM */}
       <section className="max-w-md mx-auto px-4 sm:px-6 py-8 sm:py-16">
         <div className="bg-white rounded-2xl shadow-lg border p-6 sm:p-8">
           <h1 className="text-2xl sm:text-3xl font-bold text-center mb-2">
-            {pendingVerification ? 'Ověření emailu' : 'Vytvořit účet'}
+            {pendingVerification ? 'Ověření' : 'Přihlásit se'}
           </h1>
           <p className="text-center text-gray-600 mb-6 sm:mb-8 text-sm sm:text-base">
             {pendingVerification 
               ? 'Zadej verifikační kód, který jsme ti poslali na email' 
-              : 'Zaregistruj se a začni používat LexChat'}
+              : 'Vítej zpět! Přihlas se do svého účtu'}
           </p>
 
           {error && (
@@ -142,40 +147,6 @@ export default function SignUpPage() {
 
           {!pendingVerification ? (
             <form onSubmit={handleSubmit} className="space-y-6">
-              <div>
-                <label htmlFor="firstName" className="block text-sm font-medium text-gray-700 mb-2">
-                  Jméno
-                </label>
-                <input
-                  type="text"
-                  id="firstName"
-                  name="firstName"
-                  value={formData.firstName}
-                  onChange={handleChange}
-                  required
-                  disabled={isSubmitting}
-                  className="w-full px-4 py-3.5 sm:py-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-blue-600 focus:border-transparent outline-none transition text-base disabled:opacity-50 disabled:cursor-not-allowed"
-                  placeholder="Jan"
-                />
-              </div>
-
-              <div>
-                <label htmlFor="lastName" className="block text-sm font-medium text-gray-700 mb-2">
-                  Příjmení
-                </label>
-                <input
-                  type="text"
-                  id="lastName"
-                  name="lastName"
-                  value={formData.lastName}
-                  onChange={handleChange}
-                  required
-                  disabled={isSubmitting}
-                  className="w-full px-4 py-3.5 sm:py-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-blue-600 focus:border-transparent outline-none transition text-base disabled:opacity-50 disabled:cursor-not-allowed"
-                  placeholder="Novák"
-                />
-              </div>
-
               <div>
                 <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-2">
                   Email
@@ -205,13 +176,9 @@ export default function SignUpPage() {
                   onChange={handleChange}
                   required
                   disabled={isSubmitting}
-                  minLength={8}
                   className="w-full px-4 py-3.5 sm:py-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-blue-600 focus:border-transparent outline-none transition text-base disabled:opacity-50 disabled:cursor-not-allowed"
-                  placeholder="Minimálně 8 znaků"
+                  placeholder="••••••••"
                 />
-                <p className="mt-1 text-xs text-gray-500">
-                  Heslo musí obsahovat minimálně 8 znaků
-                </p>
               </div>
 
               <button
@@ -219,7 +186,7 @@ export default function SignUpPage() {
                 disabled={isSubmitting || !isLoaded}
                 className="w-full px-6 py-3 rounded-lg bg-blue-600 text-white font-semibold hover:bg-blue-700 transition shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                {isSubmitting ? 'Registruji...' : 'Zaregistrovat se'}
+                {isSubmitting ? 'Přihlašuji...' : 'Přihlásit se'}
               </button>
             </form>
           ) : (
@@ -250,7 +217,7 @@ export default function SignUpPage() {
                 disabled={isSubmitting || !isLoaded || code.length !== 6}
                 className="w-full px-6 py-3 rounded-lg bg-blue-600 text-white font-semibold hover:bg-blue-700 transition shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                {isSubmitting ? 'Ověřuji...' : 'Ověřit email'}
+                {isSubmitting ? 'Ověřuji...' : 'Ověřit a přihlásit se'}
               </button>
 
               <button
@@ -269,9 +236,9 @@ export default function SignUpPage() {
 
           {!pendingVerification && (
             <p className="mt-6 text-center text-sm text-gray-600">
-              Už máš účet?{' '}
-              <Link href="/sign-in" className="text-blue-600 font-medium hover:text-blue-700">
-                Přihlásit se
+              Nemáš ještě účet?{' '}
+              <Link href="/signup" className="text-blue-600 font-medium hover:text-blue-700">
+                Zaregistrovat se
               </Link>
             </p>
           )}

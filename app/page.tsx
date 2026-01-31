@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useState } from "react";
+import Header from "@/components/Header";
 
 export default function Home() {
   const [openFaq, setOpenFaq] = useState<number | null>(null);
@@ -25,30 +26,7 @@ export default function Home() {
 
   return (
     <main className="min-h-screen bg-gradient-to-b from-gray-50 to-white text-gray-900">
-      {/* HEADER */}
-      <header className="border-b bg-white/80 backdrop-blur-sm sticky top-0 z-50">
-        <div className="max-w-6xl mx-auto px-4 sm:px-6 py-3 sm:py-4 flex items-center justify-between">
-          <Link href="/" className="text-xl sm:text-2xl font-bold text-blue-600">
-            LexChat
-          </Link>
-          <nav className="flex items-center gap-2 sm:gap-4">
-            <Link
-              href="/login"
-              className="px-3 sm:px-6 py-1.5 sm:py-2 rounded-lg text-gray-700 text-sm sm:text-base font-medium hover:bg-gray-100 transition"
-            >
-              <span className="hidden sm:inline">Přihlásit se</span>
-              <span className="sm:hidden">Přihlásit</span>
-            </Link>
-            <Link
-              href="/signup"
-              className="px-3 sm:px-6 py-1.5 sm:py-2 rounded-lg bg-blue-600 text-white text-sm sm:text-base font-semibold hover:bg-blue-700 transition shadow-sm"
-            >
-              <span className="hidden sm:inline">Registrovat se</span>
-              <span className="sm:hidden">Registrace</span>
-            </Link>
-          </nav>
-        </div>
-      </header>
+      <Header />
 
       {/* HERO */}
       <section className="max-w-6xl mx-auto px-4 sm:px-6 py-16 sm:py-28 text-center">

@@ -4,6 +4,8 @@ export const dynamic = "force-dynamic"
 
 import { useState, useEffect, useRef } from 'react';
 import { useSearchParams } from 'next/navigation';
+import Link from 'next/link';
+import { useUser } from '@clerk/nextjs';
 
 type Message = {
   role: 'user' | 'assistant';
@@ -60,6 +62,7 @@ function saveChats(chats: Chat[]) {
 
 export default function ChatClient() {
   const searchParams = useSearchParams();
+  const { isSignedIn, isLoaded: isUserLoaded } = useUser();
   const [chats, setChats] = useState<Chat[]>([]);
   const [currentChatId, setCurrentChatId] = useState<string | null>(null);
   const [messages, setMessages] = useState<Message[]>([
@@ -74,23 +77,130 @@ export default function ChatClient() {
   const [searchMode, setSearchMode] = useState<'internet' | 'database' | 'both'>('both');
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [isGuestMode, setIsGuestMode] = useState(false);
+  const [hasReceivedGuestAnswer, setHasReceivedGuestAnswer] = useState(false);
 
   // Načíst chaty při načtení stránky
   useEffect(() => {
-    const loadedChats = loadChats();
-    setChats(loadedChats);
-    
-    // Pokud je v URL parametr q, vytvoř nový chat
+    if (!isUserLoaded) return;
+
     const question = searchParams.get('q');
-    if (question) {
-      setInput(decodeURIComponent(question));
-    } else if (loadedChats.length > 0) {
-      // Načíst poslední chat
-      const lastChat = loadedChats[loadedChats.length - 1];
-      setCurrentChatId(lastChat.id);
-      setMessages(lastChat.messages);
+    
+    // Pokud uživatel není přihlášen a má parametr q, aktivuj guest mode
+    if (!isSignedIn && question) {
+      setIsGuestMode(true);
+      const decodedQuestion = decodeURIComponent(question);
+      setInput(decodedQuestion);
+      // Automaticky odeslat dotaz
+      setTimeout(() => {
+        handleGuestQuestion(decodedQuestion);
+      }, 500);
+    } else {
+      const loadedChats = loadChats();
+      setChats(loadedChats);
+      
+      if (question) {
+        setInput(decodeURIComponent(question));
+      } else if (loadedChats.length > 0) {
+        // Načíst poslední chat
+        const lastChat = loadedChats[loadedChats.length - 1];
+        setCurrentChatId(lastChat.id);
+        setMessages(lastChat.messages);
+      }
     }
-  }, [searchParams]);
+  }, [searchParams, isSignedIn, isUserLoaded]);
+
+  // Funkce pro odeslání dotazu v guest mode
+  const handleGuestQuestion = async (question: string) => {
+    if (loading || hasReceivedGuestAnswer) return;
+
+    const newMessages: Message[] = [
+      { role: 'assistant', content: 'Ahoj 👋 Jak ti mohu pomoci?' },
+      { role: 'user', content: question },
+    ];
+
+    setMessages(newMessages);
+    setLoading(true);
+
+    const streamingMessages: Message[] = [
+      ...newMessages,
+      { role: 'assistant', content: '' },
+    ];
+    setMessages(streamingMessages);
+
+    try {
+      // Guest nemá nahrané dokumenty – RAG se nepoužije
+      const res = await fetch('/api/chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ messages: newMessages, useRag: false }),
+      });
+
+      if (!res.ok) {
+        throw new Error('Chyba při komunikaci se serverem');
+      }
+
+      const reader = res.body?.getReader();
+      const decoder = new TextDecoder();
+      let assistantContent = '';
+
+      if (reader) {
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+
+          const chunk = decoder.decode(value);
+          const lines = chunk.split('\n');
+
+          for (const line of lines) {
+            if (line.startsWith('data: ')) {
+              const data = line.slice(6);
+              if (data === '[DONE]') {
+                break;
+              }
+              try {
+                const parsed = JSON.parse(data);
+                if (parsed.content) {
+                  assistantContent += parsed.content;
+                  const updatedStreamingMessages: Message[] = [
+                    ...newMessages,
+                    { role: 'assistant', content: assistantContent },
+                  ];
+                  setMessages(updatedStreamingMessages);
+                }
+              } catch (e) {
+                // Ignorovat chyby parsování
+              }
+            }
+          }
+        }
+      }
+
+      const finalMessages: Message[] = [
+        ...newMessages,
+        {
+          role: 'assistant',
+          content: assistantContent || 'Chyba odpovědi',
+        },
+      ];
+
+      setMessages(finalMessages);
+      setHasReceivedGuestAnswer(true);
+      setInput('');
+    } catch (err) {
+      const errorMessages: Message[] = [
+        ...newMessages,
+        {
+          role: 'assistant',
+          content: 'Došlo k chybě při komunikaci se serverem.',
+        },
+      ];
+      setMessages(errorMessages);
+      setHasReceivedGuestAnswer(true);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   // Uložit chat při změně zpráv
   useEffect(() => {
@@ -146,6 +256,8 @@ export default function ChatClient() {
 
   const deleteChat = (chatId: string, e: React.MouseEvent) => {
     e.stopPropagation();
+    e.preventDefault();
+    
     const updatedChats = chats.filter((c) => c.id !== chatId);
     setChats(updatedChats);
     saveChats(updatedChats);
@@ -153,14 +265,37 @@ export default function ChatClient() {
     if (currentChatId === chatId) {
       if (updatedChats.length > 0) {
         const lastChat = updatedChats[updatedChats.length - 1];
-        loadChat(lastChat.id);
+        setCurrentChatId(lastChat.id);
+        setMessages(lastChat.messages);
+        setInput('');
       } else {
-        createNewChat();
+        const newChat: Chat = {
+          id: Date.now().toString(),
+          title: 'Nový chat',
+          messages: [
+            {
+              role: 'assistant',
+              content: 'Ahoj 👋 Jak ti mohu pomoci?',
+            },
+          ],
+          createdAt: Date.now(),
+          updatedAt: Date.now(),
+        };
+        setChats([newChat]);
+        setCurrentChatId(newChat.id);
+        setMessages(newChat.messages);
+        setInput('');
+        saveChats([newChat]);
       }
     }
   };
 
   const sendMessage = async () => {
+    // V guest mode blokovat další dotazy
+    if (isGuestMode && hasReceivedGuestAnswer) {
+      return;
+    }
+    
     if (!input.trim() || loading) return;
 
     // Pokud není aktuální chat, vytvoř nový
@@ -178,20 +313,66 @@ export default function ChatClient() {
     setInput('');
     setLoading(true);
 
+    // Přidat prázdnou zprávu asistenta pro postupné nahrávání
+    const streamingMessages: Message[] = [
+      ...newMessages,
+      { role: 'assistant', content: '' },
+    ];
+    setMessages(streamingMessages);
+
     try {
+      const useRag = searchMode === 'database' || searchMode === 'both';
       const res = await fetch('/api/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ messages: newMessages }),
+        body: JSON.stringify({ messages: newMessages, useRag }),
       });
 
-      const data = await res.json();
+      if (!res.ok) {
+        throw new Error('Chyba při komunikaci se serverem');
+      }
+
+      const reader = res.body?.getReader();
+      const decoder = new TextDecoder();
+      let assistantContent = '';
+
+      if (reader) {
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+
+          const chunk = decoder.decode(value);
+          const lines = chunk.split('\n');
+
+          for (const line of lines) {
+            if (line.startsWith('data: ')) {
+              const data = line.slice(6);
+              if (data === '[DONE]') {
+                break;
+              }
+              try {
+                const parsed = JSON.parse(data);
+                if (parsed.content) {
+                  assistantContent += parsed.content;
+                  const updatedStreamingMessages: Message[] = [
+                    ...newMessages,
+                    { role: 'assistant', content: assistantContent },
+                  ];
+                  setMessages(updatedStreamingMessages);
+                }
+              } catch (e) {
+                // Ignorovat chyby parsování
+              }
+            }
+          }
+        }
+      }
 
       const finalMessages: Message[] = [
         ...newMessages,
         {
           role: 'assistant',
-          content: data.message?.content ?? 'Chyba odpovědi',
+          content: assistantContent || 'Chyba odpovědi',
         },
       ];
 
@@ -290,12 +471,14 @@ export default function ChatClient() {
 
       {/* SIDEBAR */}
       <aside
-        className={`fixed md:static inset-y-0 left-0 w-64 border-r bg-white p-4 z-50 flex flex-col transform transition-transform duration-300 ${
+        className={`fixed md:static inset-y-0 left-0 w-64 border-r-2 border-gray-300 bg-white p-4 z-50 flex flex-col transform transition-transform duration-300 ${
           sidebarOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'
         }`}
       >
         <div className="flex items-center justify-between mb-4">
-          <h2 className="text-lg font-semibold">LexChat</h2>
+          <Link href="/" className="text-xl sm:text-2xl font-bold text-blue-600 hover:text-blue-700 transition">
+            LexChat
+          </Link>
           <button
             onClick={() => setSidebarOpen(false)}
             className="md:hidden p-1 rounded-lg hover:bg-gray-100"
@@ -400,7 +583,7 @@ export default function ChatClient() {
           )}
         </div>
 
-        <div className="border-t pt-3 text-xs text-gray-400">
+        <div className="border-t-2 border-gray-300 pt-3 text-xs text-gray-400">
           OpenLex © 2026
         </div>
       </aside>
@@ -408,7 +591,7 @@ export default function ChatClient() {
       {/* CHAT */}
       <main className="flex-1 flex flex-col w-full md:w-auto">
         {/* MOBILE HEADER */}
-        <div className="md:hidden border-b bg-white px-4 py-3 flex items-center justify-between">
+        <div className="md:hidden border-b-2 border-gray-300 bg-white px-4 py-3 flex items-center justify-between">
           <button
             onClick={() => setSidebarOpen(true)}
             className="p-2 rounded-lg hover:bg-gray-100"
@@ -428,12 +611,14 @@ export default function ChatClient() {
               />
             </svg>
           </button>
-          <h2 className="text-lg font-semibold text-blue-600">LexChat</h2>
+          <Link href="/" className="text-xl sm:text-2xl font-bold text-blue-600 hover:text-blue-700 transition">
+            LexChat
+          </Link>
           <div className="w-10" /> {/* Spacer for centering */}
         </div>
 
         {/* SEARCH MODE SELECTOR */}
-        <div className="border-b bg-white px-4 md:px-6 py-3 md:py-4">
+        <div className="border-b-2 border-gray-300 bg-white px-4 md:px-6 py-3 md:py-4">
           <div className="max-w-3xl mx-auto">
             <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2 sm:gap-2">
               <span className="text-xs sm:text-sm font-medium text-gray-700 whitespace-nowrap">
@@ -478,21 +663,27 @@ export default function ChatClient() {
         {/* MESSAGES */}
         <div className="flex-1 overflow-y-auto px-4 sm:px-6 py-4 sm:py-6">
           <div className="max-w-3xl mx-auto space-y-4">
-            {messages.map((msg, i) => (
-              <div
-                key={i}
-                className={`max-w-[85%] sm:max-w-xl px-3 sm:px-4 py-2.5 sm:py-2 rounded-lg text-base sm:text-sm break-words ${
-                  msg.role === 'user'
-                    ? 'ml-auto bg-blue-600 text-white'
-                    : 'mr-auto bg-gray-100 text-gray-800'
-                }`}
-              >
-                {msg.content}
-              </div>
-            ))}
-
-            {/* TYPING INDICATOR */}
-            {loading && (
+            {messages.map((msg, i) => {
+              const isLastMessage = i === messages.length - 1;
+              const isEmptyAssistantMessage = msg.role === 'assistant' && !msg.content.trim();
+              const showTypingDots = loading && isLastMessage && (isEmptyAssistantMessage || msg.role === 'assistant');
+              
+              return (
+                <div
+                  key={i}
+                  className={`max-w-[85%] sm:max-w-xl px-3 sm:px-4 py-2.5 sm:py-2 rounded-lg text-base sm:text-sm break-words ${
+                    msg.role === 'user'
+                      ? 'ml-auto bg-blue-600 text-white'
+                      : 'mr-auto bg-gray-100 text-gray-800'
+                  }`}
+                >
+                  {showTypingDots && isEmptyAssistantMessage ? <TypingDots /> : msg.content}
+                </div>
+              );
+            })}
+            
+            {/* TYPING INDICATOR - zobrazit když loading a poslední zpráva není od asistenta */}
+            {loading && messages.length > 0 && messages[messages.length - 1]?.role !== 'assistant' && (
               <div className="max-w-[85%] sm:max-w-xl mr-auto bg-gray-100 text-gray-800 px-3 sm:px-4 py-2.5 sm:py-2 rounded-lg text-base sm:text-sm">
                 <TypingDots />
               </div>
@@ -501,8 +692,27 @@ export default function ChatClient() {
         </div>
 
         {/* INPUT */}
-        <div className="border-t bg-white px-4 sm:px-6 py-3 sm:py-4">
+        <div className="border-t-2 border-gray-300 bg-white px-4 sm:px-6 py-3 sm:py-4">
           <div className="max-w-3xl mx-auto space-y-2">
+            {/* Guest mode zpráva */}
+            {isGuestMode && hasReceivedGuestAnswer && (
+              <div className="mb-4 p-4 rounded-lg bg-blue-50 border border-blue-200">
+                <p className="text-sm text-blue-800 mb-3">
+                  Pro pokračování v chatování se prosím{' '}
+                  <Link href="/signup" className="font-semibold underline hover:text-blue-900">
+                    zaregistruj
+                  </Link>
+                  {' '}nebo{' '}
+                  <Link href="/sign-in" className="font-semibold underline hover:text-blue-900">
+                    přihlas
+                  </Link>
+                  .
+                </p>
+                <p className="text-xs text-blue-600">
+                  Registrace je zdarma a trvá méně než minutu.
+                </p>
+              </div>
+            )}
             <input
               type="file"
               ref={fileInputRef}
@@ -536,17 +746,17 @@ export default function ChatClient() {
             <div className="flex gap-2">
               <input
                 type="text"
-                placeholder="Napiš dotaz…"
-                className="flex-1 rounded-md border px-3 py-2.5 sm:py-2 text-base sm:text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                placeholder={isGuestMode && hasReceivedGuestAnswer ? "Pro další dotazy se prosím zaregistruj" : "Napiš dotaz…"}
+                className="flex-1 rounded-md border px-3 py-2.5 sm:py-2 text-base sm:text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
                 onKeyDown={(e) => e.key === 'Enter' && sendMessage()}
-                disabled={loading}
+                disabled={loading || (isGuestMode && hasReceivedGuestAnswer)}
               />
               <button
                 onClick={sendMessage}
-                disabled={loading}
-                className="rounded-md bg-blue-600 px-4 sm:px-4 py-2.5 sm:py-2 text-sm text-white hover:bg-blue-700 disabled:opacity-50 whitespace-nowrap"
+                disabled={loading || (isGuestMode && hasReceivedGuestAnswer)}
+                className="rounded-md bg-blue-600 px-4 sm:px-4 py-2.5 sm:py-2 text-sm text-white hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap"
               >
                 Odeslat
               </button>

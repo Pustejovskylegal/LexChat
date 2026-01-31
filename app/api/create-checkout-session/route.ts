@@ -57,7 +57,7 @@ export async function POST(req: Request) {
         firstName: firstName || "",
         lastName: lastName || "",
       },
-      success_url: `${process.env.NEXT_PUBLIC_BASE_URL || "http://localhost:3000"}/chat?session_id={CHECKOUT_SESSION_ID}`,
+      success_url: `${process.env.NEXT_PUBLIC_BASE_URL || "http://localhost:3000"}/chat`,
       cancel_url: `${process.env.NEXT_PUBLIC_BASE_URL || "http://localhost:3000"}/signup/pricing`,
     });
 
