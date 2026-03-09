@@ -16,6 +16,27 @@ export default function SignInPage() {
   const [error, setError] = useState<string | null>(null);
   const [pendingVerification, setPendingVerification] = useState(false);
   const [code, setCode] = useState('');
+  const [resendCooldown, setResendCooldown] = useState(0);
+
+  const handleResendCode = async () => {
+    if (!isLoaded || resendCooldown > 0) return;
+    setError(null);
+    try {
+      await signIn.prepareSecondFactor({ strategy: 'email_code' });
+      setResendCooldown(60);
+      const id = setInterval(() => {
+        setResendCooldown((s) => {
+          if (s <= 1) {
+            clearInterval(id);
+            return 0;
+          }
+          return s - 1;
+        });
+      }, 1000);
+    } catch (err: any) {
+      setError(err.errors?.[0]?.message || 'Kód se nepodařilo odeslat.');
+    }
+  };
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setFormData({
@@ -43,21 +64,23 @@ export default function SignInPage() {
       if (result.status === 'complete') {
         // Přihlášení dokončeno - aktivovat session
         await setActive({ session: result.createdSessionId });
-        // Přesměrovat na chat
         router.push('/chat');
+      } else if (result.status === 'needs_second_factor') {
+        // Clerk vyžaduje druhý faktor (např. email kód) – nejdřív odeslat kód na email
+        await signIn.prepareSecondFactor({ strategy: 'email_code' });
+        setPendingVerification(true);
       } else {
-        // Je potřeba další verifikace (2FA, email code, atd.)
-        // Zkusit dokončit přihlášení s heslem
+        // Ostatní stavy (needs_first_factor) – zkusit dokončit s heslem
         const completeSignIn = await signIn.attemptFirstFactor({
           strategy: 'password',
           password: formData.password,
         });
-        
+
         if (completeSignIn.status === 'complete') {
           await setActive({ session: completeSignIn.createdSessionId });
           router.push('/chat');
         } else if (completeSignIn.status === 'needs_second_factor') {
-          // Je potřeba 2FA nebo email verifikace
+          await signIn.prepareSecondFactor({ strategy: 'email_code' });
           setPendingVerification(true);
         } else {
           setError('Přihlášení vyžaduje další ověření. Zkontrolujte svůj email.');
@@ -80,15 +103,13 @@ export default function SignInPage() {
     setError(null);
 
     try {
-      // Ověřit kód a dokončit přihlášení
-      const completeSignIn = await signIn.attemptFirstFactor({
+      const completeSignIn = await signIn.attemptSecondFactor({
         strategy: 'email_code',
         code,
       });
 
       if (completeSignIn.status === 'complete') {
         await setActive({ session: completeSignIn.createdSessionId });
-        // Přesměrovat na chat
         router.push('/chat');
       } else {
         setError('Přihlášení nebylo dokončeno. Zkuste to prosím znovu.');
@@ -211,6 +232,16 @@ export default function SignInPage() {
                 <p className="mt-1 text-xs text-gray-500 text-center">
                   Zkontroluj svůj email a zadej 6místný kód
                 </p>
+                <div className="mt-2 text-center">
+                  <button
+                    type="button"
+                    onClick={handleResendCode}
+                    disabled={resendCooldown > 0 || isSubmitting}
+                    className="text-sm text-blue-600 hover:text-blue-700 disabled:text-gray-400 disabled:cursor-not-allowed"
+                  >
+                    {resendCooldown > 0 ? `Znovu odeslat za ${resendCooldown}s` : 'Znovu odeslat kód'}
+                  </button>
+                </div>
               </div>
 
               <button
