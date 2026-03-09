@@ -92,7 +92,7 @@ export default function Home() {
         <div className="text-center mb-8 sm:mb-16">
           <h2 className="text-2xl sm:text-3xl md:text-4xl font-bold mb-3 sm:mb-4">Proč zvolit LexChat?</h2>
           <p className="text-base sm:text-lg text-gray-600 max-w-2xl mx-auto px-4">
-            Komplexní řešení pro moderní právní praxi
+            Komplexní řešení pro moderní právní praxi — a databáze, která jde nad rámec pouhých rozsudků
           </p>
         </div>
 
@@ -100,10 +100,16 @@ export default function Home() {
           {[
             {
               icon: "📚",
-              title: "Databáze soudních rozhodnutí",
+              title: "Databáze, jakou konkurence nemá",
               description:
-                "Přístup k desetitisícům soudních rozhodnutí z celé ČR. Rychlé vyhledávání podobných případů a precedentů.",
+                "Nejen soudní rozhodnutí — naše databáze zahrnuje i studijní materiály, testy, klauzury, monografie a odbornou literaturu. Ideální pro přípravu na zkoušky i pro každodenní praxi.",
               highlight: true,
+            },
+            {
+              icon: "⚖️",
+              title: "Soudní rozhodnutí z celé ČR",
+              description:
+                "Desetitisíce rozsudků a precedentů. Rychlé vyhledávání podobných případů a spolehlivé citace pro tvou argumentaci.",
             },
             {
               icon: "⚡",
@@ -151,7 +157,7 @@ export default function Home() {
               icon: "🎯",
               title: "Přesné citace",
               description:
-                "Automatické citování právních předpisů a soudních rozhodnutí. Vždy víš, odkud informace pochází.",
+                "Automatické citování právních předpisů, soudních rozhodnutí i odborných pramenů. Vždy víš, odkud informace pochází.",
             },
           ].map((feature, i) => (
             <div
@@ -228,7 +234,7 @@ export default function Home() {
             {
               question: "Kolik soudních rozhodnutí obsahuje databáze?",
               answer:
-                "Naše databáze obsahuje desetitisíce soudních rozhodnutí z celé České republiky. Pravidelně přidáváme nová rozhodnutí a aktualizujeme existující záznamy. Databáze pokrývá všechny oblasti práva včetně občanského, trestního, pracovního a obchodního.",
+                "Naše databáze obsahuje desetitisíce soudních rozhodnutí z celé České republiky. Oproti běžné konkurenci ji navíc tvoří i studijní materiály, testy, klauzury, monografie a odborná literatura — ideální pro přípravu na zkoušky i pro každodenní právní praxi. Pravidelně přidáváme nové zdroje a databáze pokrývá všechny oblasti práva.",
             },
             {
               question: "Jsou moje data v bezpečí?",
