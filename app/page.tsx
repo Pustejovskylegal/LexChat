@@ -35,9 +35,8 @@ export default function Home() {
         </h1>
 
         <p className="max-w-2xl mx-auto text-base sm:text-lg text-gray-600 mb-6 sm:mb-10 px-4">
-          LexChat je moderní AI nástroj pro právníky. Analyzuje dokumenty,
-          odpovídá na dotazy a šetří hodiny práce díky vlastní databázi
-          desetitisíců soudních rozhodnutí.
+          LexChat je moderní AI nástroj pro studenty práv a právníky. Analyzuje dokumenty,
+          odpovídá na dotazy a šetří hodiny práce díky vlastní databázi judikatury, odborné literatury, článků, testových a státnickových otázek a mnoho dalšího.
         </p>
 
         <div className="flex flex-col sm:flex-row justify-center gap-3 sm:gap-4 px-4">
