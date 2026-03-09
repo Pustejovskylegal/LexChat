@@ -31,7 +31,7 @@ export default function Home() {
       {/* HERO */}
       <section className="max-w-6xl mx-auto px-4 sm:px-6 py-16 sm:py-28 text-center">
         <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-extrabold tracking-tight mb-4 sm:mb-6">
-          AI asistent primárně pro studenty práv, korporátní právníky a advokáty.
+          AI asistent pro studenty práv, korporátní právníky a advokáty.
         </h1>
 
         <p className="max-w-2xl mx-auto text-base sm:text-lg text-gray-600 mb-6 sm:mb-10 px-4">
