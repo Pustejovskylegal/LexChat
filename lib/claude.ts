@@ -13,8 +13,8 @@ function getClaudeClient(): Anthropic {
   return new Anthropic({ apiKey });
 }
 
-/** Výchozí model pro ověření/doplnění. */
-const DEFAULT_MODEL = "claude-sonnet-4-20250514";
+/** Výchozí model pro ověření/doplnění odpovědí (Claude Opus 4.6). */
+const DEFAULT_MODEL = "claude-opus-4-6";
 
 /**
  * Systémový prompt pro Claude: ověřit a doplnit odpověď od OpenAI.
@@ -24,6 +24,7 @@ const VERIFY_AND_SUPPLEMENT_SYSTEM = `Jsi odborný právní asistent v roli revi
 2. Doplň chybějící informace nebo upřesni pasáže, které jsou nepřesné či neúplné.
 3. Zachovej strukturu a tón odpovědi; neměň správné části zbytečně.
 4. Výstupem má být jediná, sjednocená odpověď pro uživatele (ne meta-komentáře typu "původní odpověď říkala...").
+5. FORMÁT: VŽDY piš odpověď v Markdownu. Používej: ## pro nadpisy sekcí, 1. 2. 3. pro hlavní body, a) b) c) nebo - pro podbody, **tučně** pro důležité pojmy. Bez této struktury bude odpověď působit neprofesionálně – strukturu vždy dodržuj.
 Vrať pouze finální ověřenou a doplněnou odpověď v češtině.`;
 
 export interface VerifyAndSupplementInput {

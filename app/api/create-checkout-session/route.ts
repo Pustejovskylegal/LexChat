@@ -1,9 +1,11 @@
 import { NextResponse } from "next/server";
 import Stripe from "stripe";
 
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
-  apiVersion: "2025-12-15.clover",
-});
+function getStripe(): Stripe {
+  const key = process.env.STRIPE_SECRET_KEY;
+  if (!key) throw new Error("STRIPE_SECRET_KEY is not set");
+  return new Stripe(key, { apiVersion: "2025-12-15.clover" });
+}
 
 // Mapování tarifů na ceny v haléřích (CZK)
 const PRICE_MAP: Record<string, number> = {
@@ -38,6 +40,7 @@ export async function POST(req: Request) {
       "http://localhost:3000";
 
     // Vytvoření Stripe checkout session
+    const stripe = getStripe();
     const session = await stripe.checkout.sessions.create({
       payment_method_types: ["card"],
       line_items: [

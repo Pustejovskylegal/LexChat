@@ -10,14 +10,22 @@ import {
   isClaudeAvailable,
 } from "@/lib/claude";
 
+export const dynamic = "force-dynamic";
+
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
 });
 
 const RAG_TOP_K = 8;
 
-/** Velikost chunku pro simulaci streamu finální odpovědi (znaky). */
-const STREAM_CHUNK_SIZE = 80;
+/** Model pro právní dotazy (přihlášený uživatel, RAG). Nejnovější: gpt-5.4; fallback gpt-4o. */
+const OPENAI_CHAT_MODEL = "gpt-5.4";
+const OPENAI_CHAT_MODEL_FALLBACK = "gpt-4o";
+
+/** Velikost chunku pro simulaci streamu finální odpovědi (znaky). Menší = plynulejší. */
+const STREAM_CHUNK_SIZE = 20;
+/** Prodleva mezi chunky (ms), aby klient stihl překreslit a stream nebyl bufferován. */
+const STREAM_CHUNK_DELAY_MS = 25;
 
 export async function POST(req: Request) {
   try {
@@ -39,7 +47,7 @@ export async function POST(req: Request) {
         (m) => ({ role: m.role as "user" | "assistant" | "system", content: m.content })
       );
       const stream = await openai.chat.completions.create({
-        model: "gpt-4o-mini",
+        model: "gpt-4o",
         messages: guestMessages,
         stream: true,
       });
@@ -91,11 +99,26 @@ export async function POST(req: Request) {
     ];
 
     // 1) OpenAI vygeneruje odpověď (ne stream, potřebujeme celý text pro Claude)
-    const completion = await openai.chat.completions.create({
-      model: "gpt-4o-mini",
-      messages: chatMessages,
-      stream: false,
-    });
+    let completion;
+    try {
+      completion = await openai.chat.completions.create({
+        model: OPENAI_CHAT_MODEL,
+        messages: chatMessages,
+        stream: false,
+      });
+    } catch (modelErr: unknown) {
+      const msg = modelErr instanceof Error ? modelErr.message : String(modelErr);
+      if (msg.includes("model") || msg.includes("not found") || msg.includes("invalid")) {
+        console.warn(`OpenAI model ${OPENAI_CHAT_MODEL} failed, falling back to ${OPENAI_CHAT_MODEL_FALLBACK}:`, msg);
+        completion = await openai.chat.completions.create({
+          model: OPENAI_CHAT_MODEL_FALLBACK,
+          messages: chatMessages,
+          stream: false,
+        });
+      } else {
+        throw modelErr;
+      }
+    }
 
     let finalAnswer =
       completion.choices[0]?.message?.content?.trim() ?? "Odpověď se nepodařilo vygenerovat.";
@@ -162,13 +185,14 @@ function streamResponse(
       "Content-Type": "text/event-stream",
       "Cache-Control": "no-cache",
       Connection: "keep-alive",
+      "X-Accel-Buffering": "no",
     },
   });
 }
 
 /**
- * Streamuje předem připravený text (odpověď po Claude) v malých chuncích,
- * aby klient zobrazoval postupně psaný text.
+ * Streamuje předem připravený text (odpověď po Claude) v malých chuncích
+ * s krátkou prodlevou mezi nimi, aby klient zobrazoval text postupně a proxy nebufferovaly.
  */
 function streamResponseFromString(text: string) {
   const encoder = new TextEncoder();
@@ -180,6 +204,9 @@ function streamResponseFromString(text: string) {
           controller.enqueue(
             encoder.encode(`data: ${JSON.stringify({ content })}\n\n`)
           );
+          if (STREAM_CHUNK_DELAY_MS > 0) {
+            await new Promise((r) => setTimeout(r, STREAM_CHUNK_DELAY_MS));
+          }
         }
         controller.enqueue(encoder.encode(`data: [DONE]\n\n`));
         controller.close();
@@ -194,6 +221,7 @@ function streamResponseFromString(text: string) {
       "Content-Type": "text/event-stream",
       "Cache-Control": "no-cache",
       Connection: "keep-alive",
+      "X-Accel-Buffering": "no",
     },
   });
 }

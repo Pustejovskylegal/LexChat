@@ -2,9 +2,11 @@ import { NextResponse } from "next/server";
 import Stripe from "stripe";
 import { getCurrentUser } from "@/lib/clerk";
 
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
-  apiVersion: "2025-12-15.clover",
-});
+function getStripe(): Stripe {
+  const key = process.env.STRIPE_SECRET_KEY;
+  if (!key) throw new Error("STRIPE_SECRET_KEY is not set");
+  return new Stripe(key, { apiVersion: "2025-12-15.clover" });
+}
 
 // Mapování tarifů na ceny
 const PRICE_MAP: Record<string, { price: number; priceText: string }> = {
@@ -32,6 +34,7 @@ export async function GET() {
       );
     }
 
+    const stripe = getStripe();
     // Najít customer podle emailu
     const customers = await stripe.customers.list({
       email: email,

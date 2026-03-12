@@ -4,6 +4,7 @@ import { useState, useEffect, useRef } from 'react';
 import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { useUser } from '@clerk/nextjs';
+import { MessageContent } from '@/components/MessageContent';
 
 type Message = {
   role: 'user' | 'assistant';
@@ -74,6 +75,7 @@ export default function ChatClient() {
   const [searchQuery, setSearchQuery] = useState('');
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const messagesEndRef = useRef<HTMLDivElement>(null);
   const [isGuestMode, setIsGuestMode] = useState(false);
   const [hasReceivedGuestAnswer, setHasReceivedGuestAnswer] = useState(false);
 
@@ -142,21 +144,22 @@ export default function ChatClient() {
       const reader = res.body?.getReader();
       const decoder = new TextDecoder();
       let assistantContent = '';
+      let sseBuffer = '';
 
       if (reader) {
         while (true) {
           const { done, value } = await reader.read();
           if (done) break;
 
-          const chunk = decoder.decode(value);
-          const lines = chunk.split('\n');
+          sseBuffer += decoder.decode(value, { stream: true });
+          const parts = sseBuffer.split('\n\n');
+          sseBuffer = parts.pop() ?? '';
 
-          for (const line of lines) {
-            if (line.startsWith('data: ')) {
+          for (const part of parts) {
+            const line = part.split('\n')[0];
+            if (line?.startsWith('data: ')) {
               const data = line.slice(6);
-              if (data === '[DONE]') {
-                break;
-              }
+              if (data === '[DONE]') break;
               try {
                 const parsed = JSON.parse(data);
                 if (parsed.content) {
@@ -167,8 +170,8 @@ export default function ChatClient() {
                   ];
                   setMessages(updatedStreamingMessages);
                 }
-              } catch (e) {
-                // Ignorovat chyby parsování
+              } catch {
+                // ignorovat neplatný JSON
               }
             }
           }
@@ -335,33 +338,33 @@ export default function ChatClient() {
       const reader = res.body?.getReader();
       const decoder = new TextDecoder();
       let assistantContent = '';
+      let sseBuffer = '';
 
       if (reader) {
         while (true) {
           const { done, value } = await reader.read();
           if (done) break;
 
-          const chunk = decoder.decode(value);
-          const lines = chunk.split('\n');
+          sseBuffer += decoder.decode(value, { stream: true });
+          const parts = sseBuffer.split('\n\n');
+          sseBuffer = parts.pop() ?? '';
 
-          for (const line of lines) {
-            if (line.startsWith('data: ')) {
+          for (const part of parts) {
+            const line = part.split('\n')[0];
+            if (line?.startsWith('data: ')) {
               const data = line.slice(6);
-              if (data === '[DONE]') {
-                break;
-              }
+              if (data === '[DONE]') break;
               try {
                 const parsed = JSON.parse(data);
                 if (parsed.content) {
                   assistantContent += parsed.content;
-                  const updatedStreamingMessages: Message[] = [
+                  setMessages([
                     ...newMessages,
                     { role: 'assistant', content: assistantContent },
-                  ];
-                  setMessages(updatedStreamingMessages);
+                  ]);
                 }
-              } catch (e) {
-                // Ignorovat chyby parsování
+              } catch {
+                // ignorovat neplatný JSON
               }
             }
           }
@@ -429,6 +432,10 @@ export default function ChatClient() {
   }, [searchParams, currentChatId]);
 
   const sortedChats = [...chats].sort((a, b) => b.updatedAt - a.updatedAt);
+  // Při streamování posunout pohled na konec odpovědi
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [messages]);
   
   // Filtrovat chaty podle vyhledávacího dotazu
   const filteredChats = sortedChats.filter((chat) =>
@@ -634,7 +641,13 @@ export default function ChatClient() {
                       : 'mr-auto bg-gray-100 text-gray-800'
                   }`}
                 >
-                  {showTypingDots && isEmptyAssistantMessage ? <TypingDots /> : msg.content}
+                  {showTypingDots && isEmptyAssistantMessage ? (
+                    <TypingDots />
+                  ) : msg.role === 'assistant' ? (
+                    <MessageContent content={msg.content} isAssistant />
+                  ) : (
+                    <MessageContent content={msg.content} />
+                  )}
                 </div>
               );
             })}
@@ -645,6 +658,7 @@ export default function ChatClient() {
                 <TypingDots />
               </div>
             )}
+            <div ref={messagesEndRef} aria-hidden />
           </div>
         </div>
 
