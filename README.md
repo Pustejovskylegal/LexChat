@@ -61,7 +61,7 @@ Moderní AI právní asistent postavený na Next.js s pokročilými funkcemi pro
 
 1. Klikněte na "Registrovat se" na hlavní stránce
 2. Vyplňte formulář (jméno, příjmení, email)
-3. Vyberte tarif (Basic, Pro, Enterprise)
+3. Vyberte tarif (Student, Pro, Enterprise)
 4. Dokončete platbu přes Stripe checkout
 
 ### Chat s AI asistentem

@@ -312,17 +312,23 @@ export default function Home() {
         <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6 md:gap-8">
           {[
             {
-              name: "Basic",
-              price: "Zdarma",
-              features: ["Omezené dotazy", "Základní analýza"],
+              name: "Student",
+              price: "199 Kč / měsíc",
+              priceNote: "zlevněno z 299 Kč",
+              features: [
+                "Interní databáze soudních rozhodnutí",
+                "Odborné články, monografie a další zdroje",
+                "Vyhledávání a citace",
+              ],
             },
             {
               name: "Pro",
-              price: "499 Kč / měsíc",
+              price: "599 Kč / měsíc",
               features: [
-                "Neomezené dotazy",
-                "Pokročilá analýza",
-                "Prioritní odpovědi",
+                "Vše z tarifu Student",
+                "Kombinace více modelů umělé inteligence",
+                "Primárně určeno pro právní praxi",
+                "Pokročilá analýza a prioritní odpovědi",
               ],
               highlight: true,
             },
@@ -345,7 +351,13 @@ export default function Home() {
               }`}
             >
               <h3 className="text-lg sm:text-xl font-semibold mb-2">{plan.name}</h3>
-              <p className="text-xl sm:text-2xl font-bold mb-4 sm:mb-6">{plan.price}</p>
+              <p className="text-xl sm:text-2xl font-bold mb-0.5">{plan.price}</p>
+              {"priceNote" in plan && plan.priceNote && (
+                <p className="text-sm text-gray-500 mb-4">{plan.priceNote}</p>
+              )}
+              {!("priceNote" in plan && plan.priceNote) && (
+                <p className="mb-4 min-h-[1.25rem]">&nbsp;</p>
+              )}
 
               <ul className="space-y-2 sm:space-y-3 text-sm sm:text-base text-gray-600 mb-6 sm:mb-8">
                 {plan.features.map((f) => (
@@ -354,7 +366,7 @@ export default function Home() {
               </ul>
 
               <Link
-                href={plan.name === "Basic" ? "/chat" : "/signup"}
+                href={plan.name === "Enterprise" ? "/signup" : "/signup"}
                 className={`block text-center py-2.5 sm:py-3 rounded-xl text-sm sm:text-base font-semibold transition ${
                   plan.highlight
                     ? "bg-blue-600 text-white hover:bg-blue-700"

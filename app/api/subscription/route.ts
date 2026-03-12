@@ -8,11 +8,13 @@ function getStripe(): Stripe {
   return new Stripe(key, { apiVersion: "2025-12-15.clover" });
 }
 
-// Mapování tarifů na ceny
+// Mapování tarifů na ceny (pro zobrazení v účtu)
 const PRICE_MAP: Record<string, { price: number; priceText: string }> = {
-  Basic: { price: 199, priceText: "199 Kč / měsíc" },
-  Pro: { price: 349, priceText: "349 Kč / měsíc" },
+  Student: { price: 199, priceText: "199 Kč / měsíc" },
+  Pro: { price: 599, priceText: "599 Kč / měsíc" },
   Enterprise: { price: 1899, priceText: "1899 Kč / měsíc" },
+  // Zpětná kompatibilita pro staré předplatné
+  Basic: { price: 199, priceText: "199 Kč / měsíc" },
 };
 
 export async function GET() {

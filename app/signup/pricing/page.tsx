@@ -23,19 +23,25 @@ export default function PricingPage() {
 
   const plans = [
     {
-      name: "Basic",
+      name: "Student",
       price: "199",
       priceText: "199 Kč / měsíc",
-      features: ["Omezené dotazy", "Základní analýza"],
+      priceNote: "zlevněno z 299 Kč",
+      features: [
+        "Interní databáze soudních rozhodnutí",
+        "Odborné články, monografie a další zdroje",
+        "Vyhledávání a citace",
+      ],
     },
     {
       name: "Pro",
-      price: "349",
-      priceText: "349 Kč / měsíc",
+      price: "599",
+      priceText: "599 Kč / měsíc",
       features: [
-        "Neomezené dotazy",
-        "Pokročilá analýza",
-        "Prioritní odpovědi",
+        "Vše z tarifu Student",
+        "Kombinace více modelů umělé inteligence",
+        "Primárně určeno pro právní praxi",
+        "Pokročilá analýza a prioritní odpovědi",
       ],
       highlight: true,
     },
@@ -149,7 +155,12 @@ export default function PricingPage() {
               )}
               <h3 className="text-xl sm:text-2xl font-semibold mb-2">{plan.name}</h3>
               <p className="text-2xl sm:text-3xl font-bold mb-1">{plan.priceText}</p>
-              <p className="text-xs sm:text-sm text-gray-500 mb-4 sm:mb-6">měsíčně</p>
+              {"priceNote" in plan && plan.priceNote && (
+                <p className="text-sm text-gray-500 mb-4">{plan.priceNote}</p>
+              )}
+              {!("priceNote" in plan && plan.priceNote) && (
+                <p className="text-xs sm:text-sm text-gray-500 mb-4 sm:mb-6">měsíčně</p>
+              )}
 
               <ul className="space-y-2 sm:space-y-3 text-sm sm:text-base text-gray-600 mb-6 sm:mb-8">
                 {plan.features.map((f) => (

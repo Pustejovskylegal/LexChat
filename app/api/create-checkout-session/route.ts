@@ -9,9 +9,9 @@ function getStripe(): Stripe {
 
 // Mapování tarifů na ceny v haléřích (CZK)
 const PRICE_MAP: Record<string, number> = {
-  Basic: 19900,    // 199 Kč = 19900 haléřů
-  Pro: 34900,      // 349 Kč = 34900 haléřů
-  Enterprise: 189900, // 1899 Kč = 189900 haléřů
+  Student: 19900,     // 199 Kč
+  Pro: 59900,         // 599 Kč
+  Enterprise: 189900, // 1899 Kč
 };
 
 export async function POST(req: Request) {
