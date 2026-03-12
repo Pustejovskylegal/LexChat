@@ -31,6 +31,13 @@ CLERK_SECRET_KEY=your_clerk_secret_key_here
 ## Volitelné proměnné
 
 ```env
+# Claude (Anthropic) – ověření a doplnění odpovědí od OpenAI
+# Bez klíče se použije pouze odpověď od OpenAI
+# ANTHROPIC_API_KEY=sk-ant-xxx
+
+# Vyhledávání na webu (Tavily) – bez klíče se použije jen interní databáze
+# TAVILY_API_KEY=tvly-xxx
+
 # Stripe Webhook (pro produkci)
 STRIPE_WEBHOOK_SECRET=your_stripe_webhook_secret_here
 

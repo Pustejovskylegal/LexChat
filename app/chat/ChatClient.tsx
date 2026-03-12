@@ -72,7 +72,6 @@ export default function ChatClient() {
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
-  const [searchMode, setSearchMode] = useState<'internet' | 'database' | 'both'>('both');
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [isGuestMode, setIsGuestMode] = useState(false);
@@ -131,7 +130,7 @@ export default function ChatClient() {
       const res = await fetch('/api/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ messages: newMessages, useRag: false }),
+        body: JSON.stringify({ messages: newMessages }),
       });
 
       if (!res.ok) {
@@ -319,11 +318,10 @@ export default function ChatClient() {
     setMessages(streamingMessages);
 
     try {
-      const useRag = searchMode === 'database' || searchMode === 'both';
       const res = await fetch('/api/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ messages: newMessages, useRag }),
+        body: JSON.stringify({ messages: newMessages }),
       });
 
       if (!res.ok) {
@@ -613,49 +611,6 @@ export default function ChatClient() {
             LexChat
           </Link>
           <div className="w-10" /> {/* Spacer for centering */}
-        </div>
-
-        {/* SEARCH MODE SELECTOR */}
-        <div className="border-b-2 border-gray-300 bg-white px-4 md:px-6 py-3 md:py-4">
-          <div className="max-w-3xl mx-auto">
-            <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2 sm:gap-2">
-              <span className="text-xs sm:text-sm font-medium text-gray-700 whitespace-nowrap">
-                Režim:
-              </span>
-              <div className="flex flex-wrap gap-2">
-                <button
-                  onClick={() => setSearchMode('internet')}
-                  className={`px-3 py-1.5 sm:px-4 sm:py-2 rounded-lg text-xs sm:text-sm font-medium transition ${
-                    searchMode === 'internet'
-                      ? 'bg-blue-600 text-white shadow-sm'
-                      : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                  }`}
-                >
-                  🌐 Internet
-                </button>
-                <button
-                  onClick={() => setSearchMode('database')}
-                  className={`px-3 py-1.5 sm:px-4 sm:py-2 rounded-lg text-xs sm:text-sm font-medium transition ${
-                    searchMode === 'database'
-                      ? 'bg-blue-600 text-white shadow-sm'
-                      : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                  }`}
-                >
-                  📚 Databáze
-                </button>
-                <button
-                  onClick={() => setSearchMode('both')}
-                  className={`px-3 py-1.5 sm:px-4 sm:py-2 rounded-lg text-xs sm:text-sm font-medium transition ${
-                    searchMode === 'both'
-                      ? 'bg-blue-600 text-white shadow-sm'
-                      : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                  }`}
-                >
-                  🔄 Obojí
-                </button>
-              </div>
-            </div>
-          </div>
         </div>
 
         {/* MESSAGES */}

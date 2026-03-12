@@ -1,16 +1,32 @@
 /**
  * Sestavení systémového promptu pro RAG.
- * Kontext z vektorové DB je vložen mezi značky.
+ * Kontext z vektorové DB a z webu, model vybírá nejvhodnější zdroj.
  */
 
-const CONTEXT_PLACEHOLDER = "{{CONTEXT}}";
-const QUERY_PLACEHOLDER = "{{QUERY}}";
+const INTERNAL_CONTEXT_PLACEHOLDER = "{{INTERNAL_CONTEXT}}";
+const WEB_CONTEXT_PLACEHOLDER = "{{WEB_CONTEXT}}";
 
-/** Ukázkový systémový prompt pro RAG (právní asistent). */
+/** Kombinovaný RAG prompt: interní databáze (Qdrant/dokumenty) + výsledky z internetu. */
+export const RAG_COMBINED_SYSTEM_PROMPT = `Jsi odborný právní asistent. Pro odpověď máš k dispozici dva zdroje:
+
+1) INTERNÍ DATABÁZE (judikatura, odborná literatura, nahrané dokumenty):
+{{INTERNAL_CONTEXT}}
+
+2) VÝSLEDKY Z INTERNETU:
+{{WEB_CONTEXT}}
+
+Pravidla:
+- Vyhodnoť spolehlivost a relevance obou zdrojů. Pro právní odpovědi upřednostňuj interní databázi, pokud obsahuje věrohodnou a k dotazu relevantní informaci.
+- Pokud je odpověď z interní databáze přesná a dostačující, použij ji a uveď zdroj.
+- Pokud interní databáze neobsahuje odpověď nebo je webový zdroj vhodnější (např. aktuální změna zákona), použij informace z internetu a uveď odkaz.
+- Odpovídej stručně a věcně. Cituj konkrétní pasáže a vždy uveď, zda vycházíš z interní databáze nebo z webu.
+- Nepředstírej informace; pokud odpověď v kontextech není, řekni to.`;
+
+/** Původní prompt pouze s interním kontextem (pro zpětnou kompatibilitu). */
 export const RAG_SYSTEM_PROMPT = `Jsi odborný právní asistent. Odpovídej na základě výhradně níže uvedeného kontextu z nahraných dokumentů. Pokud odpověď v kontextu není, řekni to a nepředstírej informace.
 
 Kontext z dokumentů:
-${CONTEXT_PLACEHOLDER}
+{{CONTEXT}}
 
 Pravidla:
 - Odpovídej stručně a věcně.
@@ -22,11 +38,10 @@ Pravidla:
  */
 export function buildContext(
   chunks: { text: string; score: number; document_id: string }[],
-  maxTokens: number = 3000
+  maxTokens: number = 2500
 ): string {
   const seen = new Set<string>();
   const parts: string[] = [];
-  // Přibližně 4 znaky na token
   const maxChars = maxTokens * 4;
 
   let totalChars = 0;
@@ -43,8 +58,24 @@ export function buildContext(
 }
 
 /**
- * Vrátí finální systémovou zprávu s kontextem a instrukcemi.
+ * Vrátí systémovou zprávu s kombinovaným kontextem (interní DB + web).
+ */
+export function getRagCombinedSystemMessage(
+  internalContext: string,
+  webContext: string
+): string {
+  return RAG_COMBINED_SYSTEM_PROMPT.replace(
+    INTERNAL_CONTEXT_PLACEHOLDER,
+    internalContext.trim() || "(Žádný relevantní záznam v interní databázi.)"
+  ).replace(
+    WEB_CONTEXT_PLACEHOLDER,
+    webContext.trim() || "(Žádné výsledky z internetu.)"
+  );
+}
+
+/**
+ * Vrátí finální systémovou zprávu pouze s interním kontextem (legacy).
  */
 export function getRagSystemMessage(context: string): string {
-  return RAG_SYSTEM_PROMPT.replace(CONTEXT_PLACEHOLDER, context || "(Žádný relevantní kontext nenalezen.)");
+  return RAG_SYSTEM_PROMPT.replace("{{CONTEXT}}", context || "(Žádný relevantní kontext nenalezen.)");
 }

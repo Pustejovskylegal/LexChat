@@ -31,6 +31,12 @@ export async function POST(req: Request) {
       );
     }
 
+    // Base URL pro redirecty: z env, z requestu (produkce), nebo localhost
+    const baseUrl =
+      process.env.NEXT_PUBLIC_BASE_URL ||
+      (typeof req.url === "string" ? new URL(req.url).origin : null) ||
+      "http://localhost:3000";
+
     // Vytvoření Stripe checkout session
     const session = await stripe.checkout.sessions.create({
       payment_method_types: ["card"],
@@ -57,8 +63,8 @@ export async function POST(req: Request) {
         firstName: firstName || "",
         lastName: lastName || "",
       },
-      success_url: `${process.env.NEXT_PUBLIC_BASE_URL || "http://localhost:3000"}/chat`,
-      cancel_url: `${process.env.NEXT_PUBLIC_BASE_URL || "http://localhost:3000"}/signup/pricing`,
+      success_url: `${baseUrl}/chat`,
+      cancel_url: `${baseUrl}/signup/pricing`,
     });
 
     return NextResponse.json({ url: session.url });

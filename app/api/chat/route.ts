@@ -3,29 +3,24 @@ import { auth } from "@clerk/nextjs/server";
 import OpenAI from "openai";
 import { getEmbedding } from "@/lib/embeddings";
 import { getQdrantClient, searchChunks } from "@/lib/vector-db";
-import {
-  buildContext,
-  getRagSystemMessage,
-} from "@/lib/rag-prompt";
+import { buildContext, getRagCombinedSystemMessage } from "@/lib/rag-prompt";
+import { searchWeb, formatWebContext } from "@/lib/web-search";
+// TODO: Claude flow – po odpovědi OpenAI zavolat verifyAndSupplement() z @/lib/claude a vrátit finální text
 
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
 });
 
-/** RAG: počet chunků pro kontext. */
 const RAG_TOP_K = 8;
 
 export async function POST(req: Request) {
   try {
     const body = await req.json();
-    const { messages, useRag = true } = body as {
-      messages: { role: string; content: string }[];
-      useRag?: boolean;
-    };
+    const { messages } = body as { messages: { role: string; content: string }[] };
 
     const { userId } = await auth();
 
-    // Guest: nepřihlášený uživatel – jeden dotaz bez RAG
+    // Guest: jeden dotaz bez RAG
     if (!userId) {
       const userMessages = messages.filter((m) => m.role === "user");
       if (userMessages.length > 1) {
@@ -45,30 +40,32 @@ export async function POST(req: Request) {
       return streamResponse(stream);
     }
 
-    // Přihlášený uživatel: RAG (similarity search pouze v jeho dokumentech)
+    // Přihlášený: vždy kombinace interní databáze (Qdrant) + vyhledávání na webu
     const lastUserMessage = [...messages]
       .reverse()
       .find((m) => m.role === "user" && m.content?.trim());
-    let systemContent: string | undefined;
+    let systemContent: string;
 
-    if (useRag && lastUserMessage?.content) {
+    if (lastUserMessage?.content) {
       const query = lastUserMessage.content;
-      const queryEmbedding = await getEmbedding(query);
+
+      const [queryEmbedding, webResults] = await Promise.all([
+        getEmbedding(query),
+        searchWeb(query),
+      ]);
+
       const qdrant = getQdrantClient();
-      const chunks = await searchChunks(
-        qdrant,
-        userId,
-        queryEmbedding,
-        RAG_TOP_K
-      );
-      const context = buildContext(chunks);
-      systemContent = getRagSystemMessage(context);
+      const chunks = await searchChunks(qdrant, userId, queryEmbedding, RAG_TOP_K);
+      const internalContext = buildContext(chunks);
+      const webContext = formatWebContext(webResults);
+
+      systemContent = getRagCombinedSystemMessage(internalContext, webContext);
+    } else {
+      systemContent = getRagCombinedSystemMessage("", "");
     }
 
     const chatMessages: OpenAI.Chat.ChatCompletionMessageParam[] = [
-      ...(systemContent
-        ? [{ role: "system" as const, content: systemContent }]
-        : []),
+      { role: "system", content: systemContent },
       ...messages
         .filter((m) => m.role !== "system")
         .map((m) => ({
