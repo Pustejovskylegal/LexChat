@@ -40,6 +40,14 @@ export async function POST(req: Request) {
       "http://localhost:3000";
 
     // Vytvoření Stripe checkout session
+// Popisy tarifů pro Stripe (zobrazení v checkoutu)
+const PLAN_DESCRIPTIONS: Record<string, string> = {
+  Student:
+    "Měsíční předplatné pro studenty práv: databáze soudních rozhodnutí, monografie, studentské materiály, státnicové otázky, testy, klauzury a vyhledávání.",
+  Pro: "Měsíční předplatné Pro: vše z tarifu Student + kombinace více AI modelů, primárně pro právní praxi, pokročilá analýza.",
+  Enterprise: "Měsíční předplatné Enterprise: firemní nasazení, API přístup, dedikovaná podpora.",
+};
+
     const stripe = getStripe();
     const session = await stripe.checkout.sessions.create({
       payment_method_types: ["card"],
@@ -48,8 +56,8 @@ export async function POST(req: Request) {
           price_data: {
             currency: "czk",
             product_data: {
-              name: `LexChat - ${planName} tarif`,
-              description: `Měsíční předplatné ${planName} tarifu`,
+              name: `LexChat - ${planName}`,
+              description: PLAN_DESCRIPTIONS[planName] ?? `Měsíční předplatné tarifu ${planName}.`,
             },
             recurring: {
               interval: "month",

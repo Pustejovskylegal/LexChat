@@ -317,9 +317,11 @@ export default function Home() {
               priceNote: "zlevněno z 299 Kč",
               features: [
                 "Interní databáze soudních rozhodnutí",
-                "Odborné články, monografie a další zdroje",
-                "Vyhledávání a citace",
+                "Monografie, odborné články, studentské materiály",
+                "Státnicové otázky, testy, klauzury a další",
+                "Vyhledávání a citace — primárně pro studenty práv",
               ],
+              highlight: true,
             },
             {
               name: "Pro",
@@ -330,7 +332,6 @@ export default function Home() {
                 "Primárně určeno pro právní praxi",
                 "Pokročilá analýza a prioritní odpovědi",
               ],
-              highlight: true,
             },
             {
               name: "Enterprise",
