@@ -134,7 +134,9 @@ export default function ChatClient() {
       });
 
       if (!res.ok) {
-        throw new Error('Chyba při komunikaci se serverem');
+        const errBody = await res.json().catch(() => ({}));
+        const message = typeof errBody?.error === 'string' ? errBody.error : 'Chyba při komunikaci se serverem';
+        throw new Error(message);
       }
 
       const reader = res.body?.getReader();
@@ -189,7 +191,7 @@ export default function ChatClient() {
         ...newMessages,
         {
           role: 'assistant',
-          content: 'Došlo k chybě při komunikaci se serverem.',
+          content: err instanceof Error ? err.message : 'Došlo k chybě při komunikaci se serverem.',
         },
       ];
       setMessages(errorMessages);
@@ -325,7 +327,9 @@ export default function ChatClient() {
       });
 
       if (!res.ok) {
-        throw new Error('Chyba při komunikaci se serverem');
+        const errBody = await res.json().catch(() => ({}));
+        const message = typeof errBody?.error === 'string' ? errBody.error : 'Chyba při komunikaci se serverem';
+        throw new Error(message);
       }
 
       const reader = res.body?.getReader();
@@ -407,7 +411,7 @@ export default function ChatClient() {
         ...newMessages,
         {
           role: 'assistant',
-          content: 'Došlo k chybě při komunikaci se serverem.',
+          content: err instanceof Error ? err.message : 'Došlo k chybě při komunikaci se serverem.',
         },
       ];
       setMessages(errorMessages);
